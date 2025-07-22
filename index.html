@@ -281,6 +281,35 @@
             </div>
         </div>
 
+        <!-- Predictive Analysis Section -->
+        <div class="bg-dark-card rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-neon-green">Predictive Analysis</h2>
+            <div class="flex flex-wrap gap-4 items-center mb-4">
+                <div class="flex flex-col">
+                    <label for="prediction-year" class="text-sm font-medium text-e0e0e0 mb-1">Predict for Year:</label>
+                    <input type="number" id="prediction-year" value="2026" min="2026" class="p-2 rounded-md bg-gray-700 border border-gray-600 text-white focus:ring-neon-green focus:border-neon-green w-24">
+                </div>
+                <button id="predict-button" class="mt-4 md:mt-0 px-4 py-2 bg-neon-green text-black font-semibold rounded-md shadow-md hover:bg-opacity-80 transition-colors duration-200">
+                    Predict Trends
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                <div class="bg-gray-700 rounded-lg shadow-md p-4 flex flex-col items-center justify-center border-b-2 border-gold">
+                    <p class="text-sm text-gray-400">Predicted Revenue</p>
+                    <p id="predicted-revenue" class="text-xl font-semibold text-white mt-1">N/A</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg shadow-md p-4 flex flex-col items-center justify-center border-b-2 border-gold">
+                    <p class="text-sm text-gray-400">Predicted Net Profit</p>
+                    <p id="predicted-net-profit" class="text-xl font-semibold text-white mt-1">N/A</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg shadow-md p-4 flex flex-col items-center justify-center border-b-2 border-gold">
+                    <p class="text-sm text-gray-400">Predicted Stock Price</p>
+                    <p id="predicted-stock-price" class="text-xl font-semibold text-white mt-1">N/A</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -555,6 +584,7 @@
             document.getElementById('region-filter').addEventListener('change', updateDashboard);
             document.getElementById('currency-toggle').addEventListener('change', updateDashboard);
             document.getElementById('chart-mode-toggle').addEventListener('change', updateDashboard);
+            document.getElementById('predict-button').addEventListener('click', runPrediction); // Add event listener for predict button
         }
 
         // Update KPI Cards
@@ -1235,6 +1265,57 @@
         }
 
 
+        // Function to run predictive analysis
+        function runPrediction() {
+            const targetYear = parseInt(document.getElementById('prediction-year').value);
+            const selectedCurrency = document.getElementById('currency-toggle').value;
+
+            if (isNaN(targetYear) || targetYear <= 2025) {
+                alert("Please enter a future year (after 2025) for prediction.");
+                return;
+            }
+
+            const lastYearData = emaarData[emaarData.length - 1]; // Data for 2025
+            const yearsToPredict = targetYear - lastYearData.Year;
+
+            // Simple linear extrapolation based on average growth from the last 5 years
+            const recentData = emaarData.slice(-5); // Get last 5 years for trend calculation
+
+            const calculateAverageGrowth = (key) => {
+                let totalGrowth = 0;
+                let count = 0;
+                for (let i = 1; i < recentData.length; i++) {
+                    const current = recentData[i][key];
+                    const previous = recentData[i - 1][key];
+                    if (previous !== 0 && previous !== null && previous !== undefined) {
+                        totalGrowth += (current - previous) / previous;
+                        count++;
+                    }
+                }
+                return count > 0 ? totalGrowth / count : 0;
+            };
+
+            const avgRevenueGrowth = calculateAverageGrowth('Revenue');
+            const avgNetProfitGrowth = calculateAverageGrowth('Net_Profit');
+            const avgStockPriceGrowth = calculateAverageGrowth('Stock_Price');
+
+            let predictedRevenue = lastYearData.Revenue;
+            let predictedNetProfit = lastYearData.Net_Profit;
+            let predictedStockPrice = lastYearData.Stock_Price;
+
+            for (let i = 0; i < yearsToPredict; i++) {
+                predictedRevenue *= (1 + avgRevenueGrowth);
+                predictedNetProfit *= (1 + avgNetProfitGrowth);
+                predictedStockPrice *= (1 + avgStockPriceGrowth);
+            }
+
+            // Update prediction KPI cards
+            const format = (value) => formatCurrency(value, selectedCurrency);
+            document.getElementById('predicted-revenue').textContent = format(predictedRevenue);
+            document.getElementById('predicted-net-profit').textContent = format(predictedNetProfit);
+            document.getElementById('predicted-stock-price').textContent = format(predictedStockPrice);
+        }
+
         // Main update function
         function updateDashboard() {
             const selectedYear = parseInt(document.getElementById('year-filter').value);
@@ -1265,6 +1346,11 @@
 
             updateKPIs(currentYearData, selectedCurrency);
             updateCharts(currentYearData, filteredChartData, selectedCurrency, selectedChartMode);
+            // Clear predictions when dashboard year changes
+            document.getElementById('predicted-revenue').textContent = 'N/A';
+            document.getElementById('predicted-net-profit').textContent = 'N/A';
+            document.getElementById('predicted-stock-price').textContent = 'N/A';
+            document.getElementById('prediction-year').value = 2026; // Reset prediction year input
         }
 
         // Initial load
